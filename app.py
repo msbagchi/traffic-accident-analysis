@@ -226,42 +226,52 @@ with tab2:
 
     st.subheader("🗺 Accident Hotspot Heatmap")
 
-    map_data = (
-        df[['Start_Lat', 'Start_Lng']]
-        .dropna()
-    )
+    # Prepare map data
+    map_data = df[['Start_Lat', 'Start_Lng']].dropna()
 
+    map_data = map_data.rename(columns={
+        'Start_Lat': 'lat',
+        'Start_Lng': 'lon'
+    })
+
+    # Small sample for performance
     sample_df = map_data.sample(
-        min(3000, len(map_data))
+        min(2000, len(map_data)),
+        random_state=42
     )
 
-    sample_df = sample_df.rename(
-        columns={
-            'Start_Lat': 'lat',
-            'Start_Lng': 'lon'
-        }
-    )
+    st.markdown("### 🔥 Accident Density Map")
 
-    # Pydeck Heatmap
+    # Better heatmap
     st.pydeck_chart(
         pdk.Deck(
-            map_style="mapbox://styles/mapbox/dark-v10",
             initial_view_state=pdk.ViewState(
-                latitude=37.7749,
-                longitude=-122.4194,
+                latitude=39.8283,
+                longitude=-98.5795,
                 zoom=3,
-                pitch=50,
+                pitch=40,
             ),
+
             layers=[
+
+                # Heatmap Layer
                 pdk.Layer(
-                    "HexagonLayer",
+                    "HeatmapLayer",
                     data=sample_df,
                     get_position='[lon, lat]',
-                    radius=10000,
-                    elevation_scale=4,
-                    elevation_range=[0, 1000],
+                    opacity=0.8,
+                    threshold=0.03,
+                    radiusPixels=60,
+                ),
+
+                # Scatter Layer
+                pdk.Layer(
+                    "ScatterplotLayer",
+                    data=sample_df,
+                    get_position='[lon, lat]',
+                    get_radius=1000,
                     pickable=True,
-                    extruded=True,
+                    opacity=0.3,
                 ),
             ],
         )
