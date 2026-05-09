@@ -1,222 +1,314 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import pydeck as pdk
 
-# Page configuration
+# ---------------- PAGE CONFIG ----------------
+
 st.set_page_config(
-    page_title="Traffic Accident Dashboard",
+    page_title="Geo-Spatial Traffic Accident Analytics",
     layout="wide"
 )
 
-# Load dataset
+# ---------------- LOAD DATA ----------------
+
 df = pd.read_csv(
-    "data/sample_accidents.csv",
-    nrows=50000
+    "data/sample_accidents.csv"
 )
 
-# Convert datetime column
+# Convert datetime
 df['Start_Time'] = pd.to_datetime(df['Start_Time'])
 
-# Create new columns
+# Extra columns
 df['Hour'] = df['Start_Time'].dt.hour
 df['Month'] = df['Start_Time'].dt.month
 
-# Dashboard Title
-st.title("🚗 Traffic Accident Analysis Dashboard")
+# ---------------- SIDEBAR ----------------
+
+st.sidebar.title("🚦 Accident Analytics")
+
+st.sidebar.markdown("""
+### Geo-Spatial Dashboard
+
+Analyze:
+- Accident hotspots
+- Severity trends
+- Weather impact
+- Geo-analysis
+""")
+
+selected_state = st.sidebar.selectbox(
+    "📍 Select State",
+    ['All'] + sorted(df['State'].dropna().unique())
+)
+
+# Filter
+if selected_state != 'All':
+    df = df[df['State'] == selected_state]
+
+# ---------------- TITLE ----------------
+
+st.title("🚗 Geo-Spatial Traffic Accident Analytics Platform")
 
 st.markdown("""
-Analyze accident trends, severity levels, weather conditions,
-and hotspot locations using interactive visualizations.
+Interactive dashboard for analyzing traffic accident severity,
+weather impact, accident hotspots, and geo-spatial trends.
 """)
 
 st.markdown("---")
 
-# Sidebar
-st.sidebar.header("🔍 Dashboard Filters")
-
-selected_state = st.sidebar.selectbox(
-    "Select State",
-    ['All'] + sorted(list(df['State'].dropna().unique()))
-)
-
-# Apply filter
-if selected_state != 'All':
-    df = df[df['State'] == selected_state]
-
-# KPI Metrics
-st.subheader("📌 Key Insights")
+# ---------------- KPI SECTION ----------------
 
 col1, col2, col3 = st.columns(3)
 
 col1.metric(
-    "Total Accidents",
+    "🚨 Total Accidents",
     f"{len(df):,}"
 )
 
 col2.metric(
-    "Average Severity",
+    "⚠ Average Severity",
     round(df['Severity'].mean(), 2)
 )
 
 col3.metric(
-    "Unique Cities",
+    "🏙 Cities Covered",
     df['City'].nunique()
 )
 
 st.markdown("---")
 
-# Severity Charts
-st.subheader("⚠️ Accident Severity Analysis")
+# ---------------- TABS ----------------
 
-col4, col5 = st.columns(2)
+tab1, tab2, tab3 = st.tabs([
+    "📊 Analysis",
+    "🗺 Hotspots",
+    "📂 Dataset"
+])
 
-# Histogram
-severity_chart = px.histogram(
-    df,
-    x='Severity',
-    title='Severity Distribution',
-    color='Severity',
-    template='plotly_dark'
-)
+# =====================================================
+# TAB 1 - ANALYSIS
+# =====================================================
 
-col4.plotly_chart(
-    severity_chart,
-    width='stretch'
-)
+with tab1:
 
-# Pie Chart with labels
-severity_pie = px.pie(
-    df,
-    names='Severity',
-    title='Severity Percentage',
-    hole=0.4,
-    template='plotly_dark'
-)
+    st.subheader("⚠ Severity Analysis")
 
-severity_pie.update_traces(
-    textinfo='percent+label'
-)
+    col4, col5 = st.columns(2)
 
-col5.plotly_chart(
-    severity_pie,
-    width='stretch'
-)
+    # Severity Histogram
+    severity_chart = px.histogram(
+        df,
+        x='Severity',
+        color='Severity',
+        template='plotly_dark',
+        title='Severity Distribution'
+    )
+
+    col4.plotly_chart(
+        severity_chart,
+        width='stretch'
+    )
+
+    # Pie Chart
+    severity_pie = px.pie(
+        df,
+        names='Severity',
+        hole=0.4,
+        template='plotly_dark',
+        title='Severity Percentage'
+    )
+
+    severity_pie.update_traces(
+        textinfo='percent+label'
+    )
+
+    col5.plotly_chart(
+        severity_pie,
+        width='stretch'
+    )
+
+    st.markdown("---")
+
+    # Time Analysis
+    st.subheader("⏰ Time-Based Trends")
+
+    col6, col7 = st.columns(2)
+
+    # Hour Analysis
+    hour_chart = px.histogram(
+        df,
+        x='Hour',
+        color='Hour',
+        template='plotly_dark',
+        title='Accidents by Hour'
+    )
+
+    col6.plotly_chart(
+        hour_chart,
+        width='stretch'
+    )
+
+    # Monthly Trends
+    month_chart = px.histogram(
+        df,
+        x='Month',
+        color='Month',
+        template='plotly_dark',
+        title='Monthly Accident Trends'
+    )
+
+    col7.plotly_chart(
+        month_chart,
+        width='stretch'
+    )
+
+    st.markdown("---")
+
+    # City Analysis
+    st.subheader("🏙 Top Accident Cities")
+
+    top_cities = (
+        df['City']
+        .value_counts()
+        .head(10)
+    )
+
+    city_chart = px.bar(
+        x=top_cities.values,
+        y=top_cities.index,
+        orientation='h',
+        template='plotly_dark',
+        title='Top 10 Accident-Prone Cities',
+        labels={
+            'x': 'Accident Count',
+            'y': 'City'
+        }
+    )
+
+    st.plotly_chart(
+        city_chart,
+        width='stretch'
+    )
+
+    st.markdown("---")
+
+    # Weather Analysis
+    st.subheader("🌦 Weather Condition Analysis")
+
+    weather_data = (
+        df['Weather_Condition']
+        .value_counts()
+        .head(10)
+    )
+
+    weather_chart = px.bar(
+        x=weather_data.index,
+        y=weather_data.values,
+        template='plotly_dark',
+        title='Top Weather Conditions',
+        labels={
+            'x': 'Weather',
+            'y': 'Accidents'
+        }
+    )
+
+    st.plotly_chart(
+        weather_chart,
+        width='stretch'
+    )
+
+# =====================================================
+# TAB 2 - MAPS
+# =====================================================
+
+with tab2:
+
+    st.subheader("🗺 Accident Hotspot Heatmap")
+
+    map_data = (
+        df[['Start_Lat', 'Start_Lng']]
+        .dropna()
+    )
+
+    sample_df = map_data.sample(
+        min(3000, len(map_data))
+    )
+
+    sample_df = sample_df.rename(
+        columns={
+            'Start_Lat': 'lat',
+            'Start_Lng': 'lon'
+        }
+    )
+
+    # Pydeck Heatmap
+    st.pydeck_chart(
+        pdk.Deck(
+            map_style="mapbox://styles/mapbox/dark-v10",
+            initial_view_state=pdk.ViewState(
+                latitude=37.7749,
+                longitude=-122.4194,
+                zoom=3,
+                pitch=50,
+            ),
+            layers=[
+                pdk.Layer(
+                    "HexagonLayer",
+                    data=sample_df,
+                    get_position='[lon, lat]',
+                    radius=10000,
+                    elevation_scale=4,
+                    elevation_range=[0, 1000],
+                    pickable=True,
+                    extruded=True,
+                ),
+            ],
+        )
+    )
+
+    st.markdown("---")
+
+    st.subheader("📍 Accident Location Map")
+
+    st.map(sample_df)
+
+# =====================================================
+# TAB 3 - DATASET
+# =====================================================
+
+with tab3:
+
+    st.subheader("📂 Dataset Preview")
+
+    st.dataframe(
+        df.head(100),
+        width='stretch'
+    )
+
+    st.markdown("---")
+
+    # Download button
+    csv = df.to_csv(index=False)
+
+    st.download_button(
+        "📥 Download Dataset",
+        csv,
+        "accidents.csv",
+        "text/csv"
+    )
+
+# ---------------- FOOTER ----------------
 
 st.markdown("---")
 
-# Time Analysis
-st.subheader("⏰ Time-Based Analysis")
+st.markdown("""
+### 👩‍💻 Developed by Tanushree
 
-col6, col7 = st.columns(2)
-
-# Hour Chart
-hour_chart = px.histogram(
-    df,
-    x='Hour',
-    title='Accidents by Hour',
-    color='Hour',
-    template='plotly_dark'
-)
-
-col6.plotly_chart(
-    hour_chart,
-    width='stretch'
-)
-
-# Monthly Trend
-monthly_chart = px.histogram(
-    df,
-    x='Month',
-    title='Monthly Accident Trends',
-    color='Month',
-    template='plotly_dark'
-)
-
-col7.plotly_chart(
-    monthly_chart,
-    width='stretch'
-)
-
-st.markdown("---")
-
-# City Analysis
-st.subheader("🏙 Top Accident Cities")
-
-top_cities = (
-    df['City']
-    .value_counts()
-    .head(10)
-)
-
-city_chart = px.bar(
-    x=top_cities.values,
-    y=top_cities.index,
-    orientation='h',
-    title='Top 10 Accident-Prone Cities',
-    labels={
-        'x': 'Number of Accidents',
-        'y': 'City'
-    },
-    template='plotly_dark'
-)
-
-st.plotly_chart(
-    city_chart,
-    width='stretch'
-)
-
-st.markdown("---")
-
-# Weather Analysis
-st.subheader("🌦 Weather Condition Analysis")
-
-weather_data = (
-    df['Weather_Condition']
-    .value_counts()
-    .head(10)
-)
-
-weather_chart = px.bar(
-    x=weather_data.index,
-    y=weather_data.values,
-    title='Top Weather Conditions',
-    labels={
-        'x': 'Weather Condition',
-        'y': 'Accident Count'
-    },
-    template='plotly_dark'
-)
-
-st.plotly_chart(
-    weather_chart,
-    width='stretch'
-)
-
-st.markdown("---")
-
-# Map Section
-st.subheader("🗺 Accident Hotspot Locations")
-
-map_data = (
-    df[['Start_Lat', 'Start_Lng']]
-    .dropna()
-)
-
-sample_df = map_data.sample(
-    min(1000, len(map_data))
-)
-
-sample_df = sample_df.rename(
-    columns={
-        'Start_Lat': 'lat',
-        'Start_Lng': 'lon'
-    }
-)
-
-st.map(sample_df)
-
-st.markdown("---")
-
-# Dataset Preview
-with st.expander("📂 View Dataset"):
-    st.dataframe(df.head(100))
+Built using:
+- Python
+- Streamlit
+- Plotly
+- PyDeck
+- Pandas
+""")
